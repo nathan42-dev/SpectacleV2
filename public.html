@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accueil du spectacle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+<style>
+  html,body{height:100%;overflow:hidden;}
+  #app{display:flex;flex-direction:column;height:100vh;width:100vw;align-items:center;justify-content:center;text-align:center;padding:40px;}
+
+  #icon{font-size:64px;margin-bottom:18px;}
+  #status-label{font-family:var(--font-display);font-size:min(6vw,58px);font-weight:700;letter-spacing:3px;text-transform:uppercase;}
+  #status-sub{color:var(--sub);font-size:20px;margin-top:10px;font-style:italic;}
+  #show-name{margin-top:18px;}
+
+  #timer-value{font-family:var(--font-mono);font-size:min(14vw,150px);font-weight:700;margin-top:50px;letter-spacing:2px;font-variant-numeric:tabular-nums;}
+  #timer-caption{color:var(--sub);font-size:18px;margin-top:8px;letter-spacing:2px;text-transform:uppercase;font-family:var(--font-display);}
+
+  #weather-row{margin-top:60px;display:flex;gap:60px;font-family:var(--font-mono);font-size:18px;color:var(--sub);}
+  #weather-row .item b{color:var(--text);}
+
+  #clock{position:fixed;top:30px;right:36px;font-family:var(--font-mono);font-size:20px;color:var(--gold-bright);}
+  #clock .date{display:block;font-size:13px;color:var(--sub);text-align:right;font-family:var(--font-body);font-style:italic;margin-top:2px;text-transform:capitalize;}
+
+  #announce-overlay{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:60px;text-align:center;}
+  #announce-overlay.show{display:flex;}
+  #announce-bg{position:absolute;inset:0;}
+  #announce-text{position:relative;font-family:var(--font-display);font-size:min(7vw,80px);font-weight:700;line-height:1.2;max-width:1300px;text-shadow:0 4px 30px rgba(0,0,0,.6);}
+  #announce-tag{position:absolute;top:44px;left:50%;transform:translateX(-50%);font-family:var(--font-display);letter-spacing:5px;text-transform:uppercase;font-size:16px;opacity:.9;}
+
+  #emergency-overlay{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:60px;text-align:center;
+    background:radial-gradient(circle at 50% 40%, rgba(163,33,47,.35), #0c0906 78%);}
+  #emergency-overlay.show{display:flex;animation:emergency-flash 1.2s ease-in-out infinite;}
+  @keyframes emergency-flash{0%,100%{background-color:rgba(163,33,47,0);}50%{background-color:rgba(163,33,47,.18);}}
+  #emergency-text{font-family:var(--font-display);font-size:min(7vw,84px);font-weight:900;color:#ffdede;line-height:1.15;}
+  #emergency-tag{position:absolute;top:44px;left:50%;transform:translateX(-50%);font-family:var(--font-display);letter-spacing:5px;text-transform:uppercase;font-size:18px;color:#ffb3b3;}
+
+  .conn{position:fixed;bottom:14px;right:18px;z-index:70;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="icon">🏰</div>
+  <div id="status-label">AVANT SPECTACLE</div>
+  <div id="status-sub">Merci de patienter, les portes ouvriront bientôt</div>
+  <div class="show-badge" id="showBadge" style="display:none;"></div>
+
+  <div id="timer-value" style="display:none;">--:--</div>
+  <div id="timer-caption" style="display:none;">Avant le début</div>
+
+  <div id="weather-row">
+    <div class="item">Météo : <b id="weatherValue">—</b></div>
+  </div>
+</div>
+
+<div id="clock">
+  <span id="clockTime">--:--:--</span>
+  <span class="date" id="clockDate">—</span>
+</div>
+
+<div id="announce-overlay">
+  <div id="announce-bg"></div>
+  <div id="announce-tag">ANNONCE</div>
+  <div id="announce-text"></div>
+</div>
+
+<div id="emergency-overlay">
+  <div id="emergency-tag">⚠ ALERTE ⚠</div>
+  <div id="emergency-text"></div>
+</div>
+
+<div class="conn bad" id="connIndicator">connexion…</div>
+
+<script type="module">
+import { firebaseConfig, DB_PATH } from "./config.js";
+import { publicStatusMeta as statusMeta, fmtDuration, announceColorMap } from "./shared.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const concertRef = ref(db, DB_PATH);
+
+let timerInterval = null;
+
+function render(data){
+  data = data || {};
+  const st = data.status || "before";
+  const meta = statusMeta[st] || statusMeta.before;
+
+  document.getElementById("icon").textContent = meta.icon;
+  document.getElementById("status-label").textContent = data.statusLabel || meta.label;
+  document.getElementById("status-label").className = "tone-" + meta.tone;
+  document.getElementById("status-sub").textContent = data.statusSub || meta.sub;
+
+  const showBadge = document.getElementById("showBadge");
+  if (data.activeShowName) {
+    showBadge.style.display = "block";
+    showBadge.textContent = `${data.activeShowIcon || "🎭"} ${data.activeShowName}`;
+    showBadge.style.color = announceColorMap[data.activeShowColor] || announceColorMap.gold;
+  } else {
+    showBadge.style.display = "none";
+  }
+
+  clearInterval(timerInterval);
+  const timerValueEl = document.getElementById("timer-value");
+  const captionEl = document.getElementById("timer-caption");
+  // On n'affiche le minuteur au public que s'il est explicitement marqué "public"
+  if (data.timerEndAt && data.timerRunning && data.timerPublic) {
+    timerValueEl.style.display = "block";
+    captionEl.style.display = "block";
+    captionEl.textContent = data.timerLabel || "Avant le début";
+    const update = () => {
+      const remaining = data.timerEndAt - Date.now();
+      timerValueEl.textContent = remaining > 0 ? fmtDuration(remaining) : "00:00";
+    };
+    update();
+    timerInterval = setInterval(update, 1000);
+  } else {
+    timerValueEl.style.display = "none";
+    captionEl.style.display = "none";
+  }
+
+  document.getElementById("weatherValue").textContent = data.weather || '—';
+
+  const overlay = document.getElementById("announce-overlay");
+  const bg = document.getElementById("announce-bg");
+  const text = document.getElementById("announce-text");
+  if (data.announcement && data.announcement.active && data.announcement.text) {
+    overlay.classList.add("show");
+    const color = data.announcement.color || "gold";
+    const c = announceColorMap[color] || announceColorMap.gold;
+    bg.style.background = `radial-gradient(circle at 50% 40%, color-mix(in srgb, ${c} 18%, transparent), #0c0906 78%)`;
+    text.style.color = c;
+    document.getElementById("announce-tag").style.color = c;
+    text.textContent = data.announcement.text;
+  } else {
+    overlay.classList.remove("show");
+  }
+
+  const emOverlay = document.getElementById("emergency-overlay");
+  if (data.emergency && data.emergency.active) {
+    emOverlay.classList.add("show");
+    document.getElementById("emergency-text").textContent = data.emergency.text || "ALERTE — SUIVEZ LES CONSIGNES DE SÉCURITÉ";
+  } else {
+    emOverlay.classList.remove("show");
+  }
+}
+
+onValue(concertRef, (snap) => {
+  document.getElementById("connIndicator").textContent = "synchronisé";
+  document.getElementById("connIndicator").className = "conn ok";
+  render(snap.val());
+}, () => {
+  document.getElementById("connIndicator").textContent = "hors ligne";
+  document.getElementById("connIndicator").className = "conn bad";
+});
+
+function tickClock(){
+  const now = new Date();
+  document.getElementById("clockTime").textContent = now.toLocaleTimeString('fr-FR');
+  document.getElementById("clockDate").textContent = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+}
+tickClock();
+setInterval(tickClock, 1000);
+</script>
+</body>
+</html>

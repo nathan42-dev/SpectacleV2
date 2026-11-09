@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RÉGIE — Écran staff</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+<style>
+  html,body{height:100%;overflow:hidden;}
+  #app{display:flex;flex-direction:column;height:100vh;width:100vw;}
+
+  /* ---- top status bar ---- */
+  #statusbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:22px 44px;border-bottom:1px solid var(--line);
+    transition:background .5s ease;position:relative;
+  }
+  #statusbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);opacity:.5;}
+
+  .status-left{display:flex;align-items:center;gap:20px;}
+  .badge{
+    width:52px;height:52px;border-radius:50%;flex-shrink:0;
+    border:2px solid var(--line);display:flex;align-items:center;justify-content:center;
+    font-size:24px;background:var(--panel);
+  }
+  .status-label{font-family:var(--font-display);font-size:30px;font-weight:700;letter-spacing:3px;text-transform:uppercase;}
+  .status-sub{color:var(--sub);font-size:15px;margin-top:3px;font-style:italic;}
+
+  .clock{font-family:var(--font-mono);font-size:32px;font-weight:700;letter-spacing:1px;text-align:right;color:var(--gold-bright);}
+  .clock .date{display:block;font-size:13px;color:var(--sub);font-weight:400;text-transform:capitalize;margin-top:3px;font-family:var(--font-body);font-style:italic;}
+  #elapsed{font-family:var(--font-mono);font-size:13px;color:var(--sub);margin-top:6px;text-align:right;}
+
+  #show-badge-row{padding:10px 44px 0;}
+
+  /* cue calling banner (standby / go) */
+  #cue-banner{
+    display:none;width:100%;align-items:center;justify-content:center;gap:16px;padding:12px;
+    font-family:var(--font-display);letter-spacing:3px;text-transform:uppercase;font-size:20px;font-weight:700;
+  }
+  #cue-banner.standby{display:flex;background:rgba(201,162,39,.16);color:var(--gold-bright);border-bottom:1px solid var(--gold);}
+  #cue-banner.go{display:flex;background:rgba(76,122,79,.28);color:#d8ffda;border-bottom:1px solid var(--forest);animation:go-flash .5s ease-in-out 4;}
+  @keyframes go-flash{0%,100%{background-color:rgba(76,122,79,.28);}50%{background-color:rgba(76,122,79,.55);}}
+
+  /* ---- main grid ---- */
+  #main{flex:1;display:grid;grid-template-columns:1.25fr 1fr;gap:1px;background:var(--line-soft);overflow:hidden;}
+  .col{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+
+  #timer-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+  #timer-value{font-family:var(--font-mono);font-size:min(15vw,140px);font-weight:700;letter-spacing:2px;line-height:1;font-variant-numeric:tabular-nums;color:var(--text);}
+  #timer-value.warn{color:var(--ember);}
+  #timer-value.over{color:var(--crimson);}
+  #timer-sub{margin-top:14px;color:var(--sub);font-size:15px;font-style:italic;}
+
+  #next{border-top:1px solid var(--line);padding:24px 40px;}
+  #next .value{font-size:25px;font-weight:600;margin-top:6px;}
+
+  #facts{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line);}
+  .fact{padding:16px 24px;border-right:1px solid var(--line);border-top:1px solid var(--line);}
+  .fact:nth-child(odd){border-left:none;}
+  .fact .value{font-size:16px;font-weight:600;margin-top:4px;font-family:var(--font-mono);}
+
+  /* right column: running order */
+  #order-head{padding:24px 30px 14px;border-bottom:1px solid var(--line);}
+  #order-list{flex:1;overflow-y:auto;padding:10px 22px;}
+  .order-item{display:flex;align-items:baseline;gap:16px;padding:14px 10px;border-bottom:1px solid var(--line-soft);}
+  .order-item .time{font-family:var(--font-mono);font-size:16px;color:var(--sub);width:64px;flex-shrink:0;}
+  .order-item .name{font-size:18px;font-weight:600;flex:1;font-family:var(--font-body);}
+  .order-item.done{opacity:.35;}
+  .order-item.done .name{text-decoration:line-through;}
+  .order-item.current{background:var(--panel-2);border-radius:6px;border-bottom:1px solid var(--panel-2);}
+  .order-item.current .time{color:var(--gold-bright);}
+  .order-item.current::before{content:"▸";color:var(--gold);margin-right:-4px;}
+  .order-empty{color:var(--sub);padding:20px 10px;font-size:15px;font-style:italic;}
+
+  /* bottom info strip */
+  #strip{display:flex;border-top:1px solid var(--line);background:var(--panel);flex-wrap:wrap;}
+  .info-cell{flex:1;min-width:150px;padding:14px 22px;border-right:1px solid var(--line);}
+  .info-cell:last-child{border-right:none;}
+  .info-cell .value{font-size:15px;font-weight:600;font-family:var(--font-mono);margin-top:4px;}
+  .info-cell .value.small{font-size:14px;font-weight:400;font-family:var(--font-body);color:var(--text);}
+
+  /* announcement overlay */
+  #announce-overlay{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:60px;text-align:center;}
+  #announce-overlay.show{display:flex;}
+  #announce-bg{position:absolute;inset:0;}
+  #announce-text{position:relative;font-family:var(--font-display);font-size:min(6.5vw,80px);font-weight:700;line-height:1.2;max-width:1400px;text-shadow:0 4px 30px rgba(0,0,0,.6);}
+  #announce-tag{position:absolute;top:44px;left:50%;transform:translateX(-50%);font-family:var(--font-display);letter-spacing:5px;text-transform:uppercase;font-size:16px;opacity:.9;}
+
+  /* emergency overlay takes priority */
+  #emergency-overlay{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:60px;text-align:center;
+    background:radial-gradient(circle at 50% 40%, rgba(163,33,47,.35), #0c0906 78%);}
+  #emergency-overlay.show{display:flex;animation:emergency-flash 1.2s ease-in-out infinite;}
+  @keyframes emergency-flash{0%,100%{background-color:rgba(163,33,47,0);}50%{background-color:rgba(163,33,47,.18);}}
+  #emergency-text{font-family:var(--font-display);font-size:min(7vw,88px);font-weight:900;color:#ffdede;line-height:1.15;text-shadow:0 4px 30px rgba(0,0,0,.7);}
+  #emergency-tag{position:absolute;top:44px;left:50%;transform:translateX(-50%);font-family:var(--font-display);letter-spacing:5px;text-transform:uppercase;font-size:18px;color:#ffb3b3;}
+
+  .conn{position:fixed;bottom:14px;right:18px;z-index:70;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="cue-banner"></div>
+
+  <div id="statusbar" class="bg-tone-before">
+    <div class="status-left">
+      <div class="badge" id="statusBadge">🏰</div>
+      <div>
+        <div class="status-label" id="statusLabel">AVANT SPECTACLE</div>
+        <div class="status-sub" id="statusSub">Écran de régie — en attente</div>
+        <div class="show-badge" id="showBadge" style="display:none;margin-top:6px;"></div>
+      </div>
+    </div>
+    <div class="clock">
+      <span id="clockTime">--:--:--</span>
+      <span class="date" id="clockDate">—</span>
+      <div id="elapsed"></div>
+    </div>
+  </div>
+
+  <div id="main">
+    <div class="col">
+      <div id="timer-zone">
+        <div class="eyebrow" id="timer-label">MINUTAGE</div>
+        <div id="timer-value">--:--</div>
+        <div id="timer-sub"></div>
+      </div>
+      <div id="next">
+        <div class="eyebrow">Prochainement</div>
+        <div class="value" id="nextValue">—</div>
+      </div>
+      <div id="facts">
+        <div class="fact"><div class="eyebrow">Tombée de la nuit</div><div class="value" id="nightfallValue">—</div></div>
+        <div class="fact"><div class="eyebrow">Plan de repli intempéries</div><div class="value" id="planBValue">—</div></div>
+        <div class="fact"><div class="eyebrow">Cavalerie / animaux</div><div class="value" id="cavalryValue">—</div></div>
+        <div class="fact"><div class="eyebrow">Pyrotechnie</div><div class="value" id="pyroValue">—</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div id="order-head"><div class="eyebrow">Déroulé du spectacle</div></div>
+      <div id="order-list"><div class="order-empty">Aucun déroulé configuré</div></div>
+    </div>
+  </div>
+
+  <div id="strip">
+    <div class="info-cell"><div class="eyebrow">Canal radio staff</div><div class="value" id="radioValue">—</div></div>
+    <div class="info-cell"><div class="eyebrow">Figurants en scène</div><div class="value" id="figurantsValue">—</div></div>
+    <div class="info-cell"><div class="eyebrow">Wi-Fi staff</div><div class="value small" id="wifiValue">—</div></div>
+    <div class="info-cell"><div class="eyebrow">Météo</div><div class="value small" id="weatherValue">—</div></div>
+    <div class="info-cell"><div class="eyebrow">Contact urgence</div><div class="value small" id="emergencyContactValue">—</div></div>
+  </div>
+
+</div>
+
+<div id="announce-overlay">
+  <div id="announce-bg"></div>
+  <div id="announce-tag">ANNONCE</div>
+  <div id="announce-text"></div>
+</div>
+
+<div id="emergency-overlay">
+  <div id="emergency-tag">⚠ ALERTE ⚠</div>
+  <div id="emergency-text"></div>
+</div>
+
+<div class="conn bad" id="connIndicator">connexion…</div>
+
+<script type="module">
+import { firebaseConfig, DB_PATH } from "./config.js";
+import { statusMeta, fmtDuration, announceColorMap } from "./shared.js";
+import { initSoundButton, beepAnnounce, beepEmergency, beepCue, beepGo, beepStatus } from "./sound.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+initSoundButton();
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const concertRef = ref(db, DB_PATH);
+
+let timerInterval = null;
+let elapsedInterval = null;
+let prevAnnounceActive = false;
+let prevEmergencyActive = false;
+let prevCueTs = 0;
+let prevStatus = null;
+
+function render(data){
+  data = data || {};
+  const st = data.status || "before";
+  const meta = statusMeta[st] || statusMeta.before;
+
+  // --- sound notifications on state transitions ---
+  const announceActive = !!(data.announcement && data.announcement.active && data.announcement.text);
+  if (announceActive && !prevAnnounceActive) beepAnnounce();
+  prevAnnounceActive = announceActive;
+
+  const emergencyActive = !!(data.emergency && data.emergency.active);
+  if (emergencyActive && !prevEmergencyActive) beepEmergency();
+  prevEmergencyActive = emergencyActive;
+
+  const cueTs = data.cue?.ts || 0;
+  if (cueTs && cueTs !== prevCueTs) {
+    if (data.cue.state === "go") beepGo(); else if (data.cue.state === "standby") beepCue();
+  }
+  prevCueTs = cueTs;
+
+  if (prevStatus !== null && st !== prevStatus && (st === "suspended" || st === "cancelled" || prevStatus === "suspended")) beepStatus();
+  prevStatus = st;
+
+  // --- cue banner (standby / go) ---
+  const cueBanner = document.getElementById("cue-banner");
+  if (data.cue && (data.cue.state === "standby" || data.cue.state === "go")) {
+    cueBanner.className = data.cue.state;
+    cueBanner.textContent = (data.cue.state === "go" ? "▶ TOP — " : "⏳ STANDBY — ") + (data.cue.label || "");
+  } else {
+    cueBanner.className = "";
+  }
+
+  // --- active show badge ---
+  const showBadge = document.getElementById("showBadge");
+  if (data.activeShowName) {
+    showBadge.style.display = "block";
+    showBadge.textContent = `${data.activeShowIcon || "🎭"} ${data.activeShowName}`;
+    showBadge.style.color = announceColorMap[data.activeShowColor] || announceColorMap.gold;
+  } else {
+    showBadge.style.display = "none";
+  }
+
+  // --- elapsed show time since "live" started ---
+  clearInterval(elapsedInterval);
+  const elapsedEl = document.getElementById("elapsed");
+  if (data.liveStartedAt) {
+    const update = () => {
+      const s = Math.floor((Date.now() - data.liveStartedAt) / 1000);
+      const h = String(Math.floor(s/3600)).padStart(2,'0');
+      const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+      const sec = String(s%60).padStart(2,'0');
+      elapsedEl.textContent = `Écoulé : ${h}:${m}:${sec}`;
+    };
+    update();
+    elapsedInterval = setInterval(update, 1000);
+  } else {
+    elapsedEl.textContent = "";
+  }
+
+  const bar = document.getElementById("statusbar");
+  bar.className = "bg-tone-" + meta.tone;
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = meta.icon;
+  badge.classList.toggle("flame", st === "live" || st === "encore");
+  document.getElementById("statusLabel").textContent = data.statusLabel || meta.label;
+  document.getElementById("statusLabel").className = "status-label tone-" + meta.tone;
+  document.getElementById("statusSub").textContent = data.statusSub || meta.sub;
+
+  // timer
+  clearInterval(timerInterval);
+  const timerLabelEl = document.getElementById("timer-label");
+  const timerValueEl = document.getElementById("timer-value");
+  const timerSubEl = document.getElementById("timer-sub");
+  timerLabelEl.textContent = data.timerLabel || "MINUTAGE";
+
+  if (data.timerEndAt && data.timerRunning) {
+    const update = () => {
+      const remaining = data.timerEndAt - Date.now();
+      timerValueEl.textContent = fmtDuration(remaining);
+      timerValueEl.classList.toggle("over", remaining < 0);
+      timerValueEl.classList.toggle("warn", remaining >= 0 && remaining < 60000);
+      timerSubEl.textContent = remaining < 0 ? "Dépassement" : "Restant";
+    };
+    update();
+    timerInterval = setInterval(update, 1000);
+  } else {
+    timerValueEl.textContent = "--:--";
+    timerValueEl.classList.remove("over","warn");
+    timerSubEl.textContent = "";
+  }
+
+  document.getElementById("nextValue").textContent = data.nextAct || "—";
+  document.getElementById("nightfallValue").textContent = data.nightfall || "—";
+  document.getElementById("planBValue").textContent = data.planB || "—";
+  document.getElementById("cavalryValue").textContent = data.cavalry || "—";
+  document.getElementById("pyroValue").textContent = data.pyro || "—";
+  document.getElementById("radioValue").textContent = data.radioChannel || "—";
+  document.getElementById("figurantsValue").textContent = data.figurants || "—";
+
+  // running order
+  const list = document.getElementById("order-list");
+  const order = data.runningOrder || [];
+  if (!order.length) {
+    list.innerHTML = '<div class="order-empty">Aucun déroulé configuré</div>';
+  } else {
+    list.innerHTML = order.map(item => `
+      <div class="order-item ${item.done ? 'done':''} ${item.current ? 'current':''}">
+        <div class="time">${item.time || ''}</div>
+        <div class="name">${item.name || ''}</div>
+      </div>
+    `).join("");
+  }
+
+  document.getElementById("wifiValue").textContent = data.wifi
+    ? `${data.wifi.ssid || '—'}${data.wifi.pass ? ' / ' + data.wifi.pass : ''}` : '—';
+  document.getElementById("weatherValue").textContent = data.weather || '—';
+  document.getElementById("emergencyContactValue").textContent = data.emergencyContact || '—';
+
+  // announcement overlay
+  const overlay = document.getElementById("announce-overlay");
+  const bg = document.getElementById("announce-bg");
+  const text = document.getElementById("announce-text");
+  if (data.announcement && data.announcement.active && data.announcement.text) {
+    overlay.classList.add("show");
+    const color = data.announcement.color || "gold";
+    const c = announceColorMap[color] || announceColorMap.gold;
+    bg.style.background = `radial-gradient(circle at 50% 40%, color-mix(in srgb, ${c} 18%, transparent), #0c0906 78%)`;
+    text.style.color = c;
+    document.getElementById("announce-tag").style.color = c;
+    text.textContent = data.announcement.text;
+  } else {
+    overlay.classList.remove("show");
+  }
+
+  // emergency overlay (independent, higher priority)
+  const emOverlay = document.getElementById("emergency-overlay");
+  if (data.emergency && data.emergency.active) {
+    emOverlay.classList.add("show");
+    document.getElementById("emergency-text").textContent = data.emergency.text || "ALERTE — SUIVEZ LES CONSIGNES DE SÉCURITÉ";
+  } else {
+    emOverlay.classList.remove("show");
+  }
+}
+
+onValue(concertRef, (snap) => {
+  document.getElementById("connIndicator").textContent = "synchronisé";
+  document.getElementById("connIndicator").className = "conn ok";
+  render(snap.val());
+}, () => {
+  document.getElementById("connIndicator").textContent = "hors ligne";
+  document.getElementById("connIndicator").className = "conn bad";
+});
+
+function tickClock(){
+  const now = new Date();
+  document.getElementById("clockTime").textContent = now.toLocaleTimeString('fr-FR');
+  document.getElementById("clockDate").textContent = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+}
+tickClock();
+setInterval(tickClock, 1000);
+</script>
+</body>
+</html>

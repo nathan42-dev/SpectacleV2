@@ -1,0 +1,98 @@
+/* ============================================================
+   THÈME — Grand Spectacle Historique
+   Pierre, bronze, parchemin, feu de torche. Pensé pour un spectacle
+   type Puy du Fou : nocturne, arène, cavalerie, pyrotechnie.
+   ============================================================ */
+:root{
+  --bg:#0c0906;
+  --bg-vignette: radial-gradient(ellipse at 20% -10%, rgba(201,162,39,.10), transparent 45%),
+                 radial-gradient(ellipse at 90% 110%, rgba(122,31,43,.12), transparent 50%);
+  --panel:#171009;
+  --panel-2:#211809;
+  --line:#3a2c15;
+  --line-soft:#2a2011;
+  --text:#f1e6cf;
+  --sub:#a8967a;
+  --gold:#c9a227;
+  --gold-bright:#e8c860;
+  --ember:#d9642e;
+  --crimson:#a3212f;
+  --forest:#4c7a4f;
+  --steel:#4d7c96;
+
+  --font-display:'Cinzel', serif;
+  --font-body:'EB Garamond', serif;
+  --font-mono:'Space Mono', monospace;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--font-body);}
+body{background-image:var(--bg-vignette);background-attachment:fixed;}
+
+::selection{background:var(--gold);color:#1a1206;}
+
+/* ---- ornamental divider ---- */
+.divider{
+  display:flex;align-items:center;gap:14px;color:var(--gold);opacity:.75;
+  font-size:13px;margin:4px 0;
+}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:linear-gradient(90deg, transparent, var(--line), transparent);}
+
+/* ---- eyebrow labels ---- */
+.eyebrow{
+  font-family:var(--font-display);
+  font-size:12px;letter-spacing:3px;text-transform:uppercase;
+  color:var(--sub);font-weight:600;
+}
+
+/* ---- torch flame flicker (used as live indicator accent) ---- */
+@keyframes flicker{
+  0%,100%{opacity:1;transform:scale(1) rotate(0deg);}
+  25%{opacity:.85;transform:scale(1.05) rotate(-2deg);}
+  50%{opacity:.95;transform:scale(.97) rotate(2deg);}
+  75%{opacity:.9;transform:scale(1.03) rotate(-1deg);}
+}
+.flame{display:inline-block;animation:flicker 1.6s ease-in-out infinite;}
+
+@keyframes pulse-ring{
+  0%{box-shadow:0 0 0 0 currentColor;opacity:1;}
+  70%{box-shadow:0 0 0 12px transparent;opacity:.5;}
+  100%{box-shadow:0 0 0 0 transparent;opacity:1;}
+}
+.pulse{animation:pulse-ring 1.8s ease-in-out infinite;}
+
+/* ---- scrollbars (webkit) ---- */
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+
+/* ---- connection indicator, shared across screens ---- */
+.conn{font-size:11px;font-family:var(--font-mono);letter-spacing:1px;color:var(--sub);}
+.conn.ok::before{content:"● ";color:var(--forest);}
+.conn.bad::before{content:"● ";color:var(--crimson);}
+
+/* ---- status color mapping helpers ---- */
+.tone-before{color:var(--sub);}
+.tone-doors{color:var(--steel);}
+.tone-live{color:var(--forest);}
+.tone-intermission{color:var(--gold);}
+.tone-encore{color:var(--ember);}
+.tone-end{color:var(--sub);}
+.tone-suspended{color:var(--ember);}
+.tone-cancelled{color:var(--crimson);}
+
+.bg-tone-before{background:linear-gradient(90deg, rgba(168,150,122,.10), transparent);}
+.bg-tone-doors{background:linear-gradient(90deg, rgba(77,124,150,.16), transparent);}
+.bg-tone-live{background:linear-gradient(90deg, rgba(76,122,79,.18), transparent);}
+.bg-tone-intermission{background:linear-gradient(90deg, rgba(201,162,39,.16), transparent);}
+.bg-tone-encore{background:linear-gradient(90deg, rgba(217,100,46,.18), transparent);}
+.bg-tone-end{background:linear-gradient(90deg, rgba(168,150,122,.10), transparent);}
+.bg-tone-suspended{background:linear-gradient(90deg, rgba(217,100,46,.20), transparent);}
+.bg-tone-cancelled{background:linear-gradient(90deg, rgba(163,33,47,.22), transparent);}
+
+/* ---- active show badge, shown on all screens ---- */
+.show-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--font-display);font-size:13px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--gold);opacity:.9;
+}
